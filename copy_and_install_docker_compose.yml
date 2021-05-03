@@ -1,0 +1,62 @@
+---
+- hosts: all
+  become: true
+
+
+  vars:
+      - docker_compose_path: /usr/local/bin/docker-compose
+      - docker_compose_url: https://github.com/docker/compose/releases/download/1.26.0/docker-compose-Linux-x86_64
+      - salesdemo_location: /home/jraihan
+
+
+  tasks:
+
+
+    - name: check whether project directory exists 
+      stat:
+        path: "{{ '/'.join((salesdemo_location, project)) }}"
+      register:  stop_docker_compose
+
+
+
+    - name: Stop all services
+      docker_compose:
+        project_src:  "{{ '/'.join((salesdemo_location, project)) }}"
+        build: no
+        stopped: yes
+      when: stop_docker_compose.stat.exists and stop_docker_compose.stat.isdir
+    
+
+
+    - name: copy salesdemo project to server
+      copy:
+        src: "{{ '/'.join((workspace, project)) }}"
+        dest: "{{ salesdemo_location }}"
+        owner: jraihan
+        group: jraihan
+        mode: 0777
+
+
+
+    - name: Check current docker-compose version.
+      command: "{{ docker_compose_path }} --version"
+      register: docker_compose_current_version
+      changed_when: false
+      failed_when: false
+
+
+
+    - name: Install Docker Compose if not installed.
+      get_url:
+        url: "{{ docker_compose_url }}"
+        dest: "{{ docker_compose_path }}"
+        mode: 0755
+      when: >
+        docker_compose_current_version.stdout is not defined
+
+    
+
+    - name: Run `docker-compose up` again
+      docker_compose:
+        project_src: "{{ '/'.join((salesdemo_location, project)) }}"
+        build: no

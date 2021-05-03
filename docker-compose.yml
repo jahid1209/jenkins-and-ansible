@@ -1,0 +1,9 @@
+version: '3.2'
+services:
+    test_web:
+        image: nginx
+        volumes:
+          - ./:/usr/share/nginx/html
+        ports: 
+          - 8100:80
+        

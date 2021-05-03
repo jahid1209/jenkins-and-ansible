@@ -1,0 +1,79 @@
+//def PROJECT_URL = "ssh://git@gitlab.infoimageinc.com:221/PD/salesdemo.git"
+//def PROJECT_URL = "https://github.com/rchidana/JavaHello.git"
+def PROJECT_URL = "ssh://git@gitlab.infoimageinc.com:221/jraihan/test-repo.git"
+
+def BRANCH_NAME = params.getOrDefault("branch_name",'')
+def PROJECT_NAME = PROJECT_URL.replaceFirst(/^.*\/([^\/]+?).git$/, '$1')
+def PLAYBOOK = "/home/jahid/ansible_tutorial/copy_and_install_docker_compose.yml"
+def INVENTORY = "/home/jahid/ansible_tutorial/inventory"
+
+
+ pipeline {
+    agent any
+   
+    parameters {
+        string(defaultValue: BRANCH_NAME, description: 'salesdemo branch name', name: 'branch_name', trim: true);
+    }
+    stages{
+    
+        stage('log'){
+            steps{
+                echo "Current workspace is ${WORKSPACE}"
+                echo "project name is ${PROJECT_NAME}"
+            }
+        }
+
+        stage("Delete current directory and it's contentents"){
+            steps{
+               //deleteDir()
+                sh("rm -rf *")
+                echo "Directory deleted successfully."
+            }
+        }       
+        stage('Checkout'){
+            steps{
+                dir("${PROJECT_NAME}") {
+                    git changelog: false, 
+                    poll: false,  
+                    credentialsId: 'a4bc1df5-1343-4251-9e90-e92bd08b59f0', 
+                    url: "${PROJECT_URL}",
+                    branch: "${BRANCH_NAME}"
+                    
+                }
+                echo 'checkout successful!';
+            }
+
+            // steps{
+            //     dir("${PROJECT_NAME}") {
+            //         git url: "${PROJECT_URL}",
+            //         branch: "${BRANCH_NAME}"
+                    
+            //     }
+            //     echo 'checkout successful!';
+            // }
+        }
+
+        stage('Execute Ansible' ){
+            steps {
+              ansiblePlaybook credentialsId: '7b478284-b90a-400e-a909-e1805400273e', disableHostKeyChecking: true, 
+              installation: 'annseeble', 
+              inventory: "${INVENTORY}", 
+              playbook: "${PLAYBOOK}",
+              extraVars: [
+                 workspace: "${WORKSPACE}",
+                 project: "${PROJECT_NAME}"
+              ]
+            }
+        }
+       
+    }
+    post{
+
+        success {
+            echo 'This will run only if successful';
+        }
+        failure {
+            echo 'This will run only if failed';
+        }
+    }
+}
